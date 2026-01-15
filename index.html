@@ -30,7 +30,7 @@
     import * as pdfjsLib from './pdfjs/pdf.mjs';
     
     // PDF.js setup
-    pdfjsLib.GlobalWorkerOptions.workerSrc = './pdfjs/pdf.worker.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/memoire-scenographisme/pdfjs/pdf.worker.mjs';
 
     async function loadPDF() {
       const pdf = await pdfjsLib.getDocument('contenu/mémoire par pages.pdf').promise;
@@ -240,5 +240,6 @@
     loadPDF();
   </script>
 </body>
+
 
 </html>
