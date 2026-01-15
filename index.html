@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Scéno'graphisme</title>
+</head>
+
+<body>
+  <div id="loading">Chargement en cours...</div>
+  <div class="flipbook">
+    <div class="hard front-cover"></div>
+    <div class="hard"></div>
+    <div class="hard back-cover"> :! <small>Camille Ledoux</small></div>
+  </div>
+
+  <!-- Movable windows -->
+  <div class="window" id="window1">
+    <div class="content"></div>
+  </div>
+  <div class="window" id="window2">
+    <div class="content"></div>
+  </div>
+
+  <script src="jquery.js"></script>
+  <script src="turn.js"></script>
+  <script type="module">
+    import * as pdfjsLib from './pdfjs/pdf.mjs';
+    
+    // PDF.js setup
+    pdfjsLib.GlobalWorkerOptions.workerSrc = './pdfjs/pdf.worker.mjs';
+
+    async function loadPDF() {
+      const pdf = await pdfjsLib.getDocument('contenu/mémoire par pages.pdf').promise;
+      const numPages = pdf.numPages;
+      
+      // Get flipbook
+      const flipbook = document.querySelector('.flipbook');
+
+      // Store covers (clone nodes to avoid DOM removal issue)
+      const frontCover = flipbook.children[0].cloneNode(true);
+      const hardCover = flipbook.children[1].cloneNode(true);
+      const backCover = flipbook.children[2].cloneNode(true);
+      const closingHard = flipbook.children[3] ? flipbook.children[3].cloneNode(true) : document.createElement('div');
+
+      // Clear flipbook
+      flipbook.innerHTML = '';
+
+      // Add front covers
+      flipbook.appendChild(frontCover);
+      flipbook.appendChild(hardCover);
+      
+      // Add PDF pages
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'page'; // Add class for styling
+        const canvas = document.createElement('canvas');
+        pageDiv.appendChild(canvas);
+        flipbook.appendChild(pageDiv);
+        
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({scale: 1});
+        // Calculate scale to fit within 500x600 (book page size) at higher quality
+        const scale = Math.min(500 / viewport.width, 600 / viewport.height) * 2;
+        const scaledViewport = page.getViewport({scale: scale});
+        canvas.height = scaledViewport.height;
+        canvas.width = scaledViewport.width;
+        
+        const renderContext = {
+          canvasContext: canvas.getContext('2d'),
+          viewport: scaledViewport
+        };
+        await page.render(renderContext).promise;
+      }
+      
+      // Add closing covers
+      flipbook.appendChild(backCover);
+      flipbook.appendChild(closingHard);
+      
+      // Initialize turn.js with keyboard navigation
+      $(".flipbook").turn({keyboard: true});
+      
+      // Set initial window content
+      updateWindows(1);
+      
+      // Add custom keyboard navigation
+      $(document).keydown(function(e) {
+        if (e.keyCode == 37) { // left arrow
+          $('.flipbook').turn('previous');
+        } else if (e.keyCode == 39) { // right arrow
+          $('.flipbook').turn('next');
+        }
+      });
+      
+      // Handle page turns to update window content
+      $('.flipbook').bind('turned', function(event, page, view) {
+        // page is the current page number
+        updateWindows(page);
+      });
+      
+      // Function to update window content based on page
+      function updateWindows(page) {
+        const content1 = getContentForPage(page, 1);
+        const content2 = getContentForPage(page, 2);
+        setWindowContent('window1', content1);
+        setWindowContent('window2', content2);
+      }
+      
+      function getContentForPage(page, windowNum) {
+        // Define content per page and window
+        const contents = {
+          1: [
+            { type: 'text', content: 'Pour toute question, vous pouvez me contacter sur LinkedIn (Camille Ledoux) ou par mail à cette adresse : ledoux.camille@hotmail.com' },
+            { type: 'text', content: 'Bienvenue ! Pour intéragir, utilisez les flèches du pavé numérique ou cliquez en bas à droite des pages. Les fenêtres flottantes comme celle-ci peuvent être déplacées.' }
+          ],
+          2: [
+            { type: 'text', content: 'Les fenêtres flottantes contiennent du contenu additionnel à mon mémoire.' },
+            { type: 'text', content: 'Le visionnage de ce contenu n\'est pas nécessaire pour le comprendre mais apporte un supplément visuel supplémentaire.' }
+          ],
+          14: [
+            { type: 'video', src: 'contenu/New York, New York A New Musical - Now on Broadway!.mp4', text: 'Trailer de New York, New York à Broadway.'
+             }
+          ],
+          18: [
+            { type: 'video', src: 'contenu/Starmania, lopéra rock sur scène à Paris  Archive INA.mp4', text: 'Archive INA, Starmania version 1979.' },
+            { type: 'video', src: 'contenu/Télégramme de Zéro à Stella.mp4', text: 'Évolution de la scène du télégramme entre les différentes versions du spectacle.' },
+          ],
+          20: [
+            { type: 'video', src: 'contenu/Transport Tovor Lutkovno gledališče Maribor.mp4', text: 'Teaser du projet Transport:Cargo.' },
+            { type: 'text', content: 'Cargo est une pièce de théâtre de marionnette muette intégrant des composantes graphiques pour renseigner le spectateur sur le contexte de l\'action.' },
+          ],
+          24: [
+            { type: 'video', src: 'contenu/NOIRE, roman graphique théâtral  collectif F71, TEASER Long.mp4', text: 'NOIRE : roman graphique théâtral, teaser.' },
+          ],
+          28: [
+             { type: 'video', src: 'contenu/Children in old Japan 1959  kamishibai 紙芝居  昔の日本.mp4', text: 'Théâtre de marionnette, d\'objet et kamishibaï dans les rues japonaise, 1959.' },
+              { type: 'video', src: 'contenu/Milo the Magnificent ®, Jim Henson Foundation grant awarded puppet show by Alex and Olmsted.mp4', text: 'Milo le Magnifique, teaser.' },
+          ],
+            30: [
+             { type: 'video', src: 'contenu/Lâne chargé déponges et lâne chargé de sel - TEASER.mp4', text: 'Teaser l\'âne chargé d\'éponges et l\'âne chargé de sel.' },
+          ],
+          32: [
+            { type: 'video', src: 'contenu/Teaser - Au jardin des potiniers.mp4', text: 'Teaser Au jardin des potiniers.' }
+          ],
+          40: [
+            { type: 'video', src: 'contenu/Myst (Macintosh) – Introduction et écran-titre (Français) – 1080p.mp4', text: 'Intro de Myst sur Macintosh.' }
+          ],
+          42: [
+            { type: 'video', src: 'contenu/Un beau ténébreux - teaser.mp4', text: 'Teaser Un beau ténébreux.' },
+            { type: 'video', src: 'contenu/Éclipse, nuit en fugue     -     le livre (version longue).mp4', text: 'Le livre Éclipse, nuit en fugue (version longue).' }
+          ],
+          46: [
+            { type: 'video', src: 'contenu/La saison 4  de la Web série Andys gone.mp4', text: 'Saison 4 de la web série Andy\'s gone.' }
+          ],
+          60: [
+            { type: 'text', content: 'De manière plus détaillée, j\'aimerais remercier tout particulièrement...' },
+            { type: 'text', content: 'Madame Gilles et Monsieur Dumas pour leur patience vis à vis de ma rédaction; Vincent pour avoir relu mon mémoire à maintes reprises même s\'il avait mieux à faire; Sarah et Louane pour leur soutien au quotidien depuis le début de mon diplôme; ma mère qui a souvent accepté que je ne fasse pas la vaisselle pour pouvoir travailler; Elio pour le tutoriel de la reliure brochure; tous mes autres camarades de promo qui sont toujours adorables et motivants; Elie & Kelly pour avoir été là. Hommage à Pépère, Mémère, et Malo, qui, j\'en suis à moitié sûre, auraient adoré me voir terminer ce diplôme. Et à tous ceux que j\'aurais pu oublier, merci.' }
+          ],
+        };
+
+        const pageContent = contents[page];
+        if (!pageContent || !pageContent[windowNum - 1]) {
+          return null;
+        }
+        return pageContent[windowNum - 1];
+      }
+      
+      function setWindowContent(windowId, content) {
+        const windowEl = document.getElementById(windowId);
+        const contentEl = windowEl.querySelector('.content');
+        // Hide window if content is empty or default (handle both text and video types)
+        if (!content || (content.type === 'text' && (!content.content || content.content.trim() === '' || content.content.startsWith('Text content for page')))
+            || (content.type === 'video' && (!content.src || content.src.trim() === ''))) {
+          windowEl.style.display = 'none';
+          contentEl.innerHTML = '';
+          return;
+        } else {
+          windowEl.style.display = '';
+        }
+        // Support both text and video in the same window, with custom styles for video window text
+        let html = '';
+        if (content.type === 'text') {
+          html += `<p>${content.content}</p>`;
+        } else if (content.type === 'video') {
+          if (content.text) {
+            // Support custom color, fontSize, italic for video window text
+            const color = content.textColor ? `color:${content.textColor};` : '';
+            const fontSize = content.textFontSize ? `font-size:${content.textFontSize};` : '';
+            const fontStyle = content.textItalic ? 'font-style:italic;' : '';
+            html += `<p style="${color}${fontSize}${fontStyle}">${content.text}</p>`;
+          }
+          html += `<video controls><source src="${encodeURI(content.src)}" type="video/mp4">Your browser does not support the video tag.</video>`;
+        }
+        contentEl.innerHTML = html;
+        if (content.type === 'video') {
+          const video = contentEl.querySelector('video');
+          if (video) video.load();
+        }
+      }
+      
+      // Make windows draggable
+      makeDraggable(document.getElementById('window1'));
+      makeDraggable(document.getElementById('window2'));
+      
+      function makeDraggable(element) {
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        element.onmousedown = dragMouseDown;
+        
+        function dragMouseDown(e) {
+          e.preventDefault();
+          pos3 = e.clientX;
+          pos4 = e.clientY;
+          document.onmouseup = closeDragElement;
+          document.onmousemove = elementDrag;
+        }
+        
+        function elementDrag(e) {
+          e.preventDefault();
+          pos1 = pos3 - e.clientX;
+          pos2 = pos4 - e.clientY;
+          pos3 = e.clientX;
+          pos4 = e.clientY;
+          element.style.top = (element.offsetTop - pos2) + "px";
+          element.style.left = (element.offsetLeft - pos1) + "px";
+        }
+        
+        function closeDragElement() {
+          document.onmouseup = null;
+          document.onmousemove = null;
+        }
+      }
+      
+      // Show the flipbook after everything is loaded
+      $('.flipbook').show();
+      $('#loading').hide();
+    }
+    
+    loadPDF();
+  </script>
+</body>
+
+</html>
